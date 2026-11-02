@@ -93,6 +93,7 @@ class DFA:
             for s, row in self._delta.items()
         }
 
+
     # ---- construction helpers ------------------------------------------
     @classmethod
     def from_text(cls, text: str) -> "DFA":

@@ -1,42 +1,41 @@
 # state_mapper
 
-Сопоставление текущего состояния **старого** частичного ДКА A с состоянием **нового** ДКА B **по прошлому**, когда лога нет.
+Maps the current state of an **old** partial DFA A to a state of a **new** DFA B **by history**, when no log of past events is available.
 
-Python 3.8+, без зависимостей. Для картинок (PNG) нужна программа [Graphviz](https://graphviz.org/download/). В Windows визуализатор также ищет стандартную установку в `Program Files`, даже если `dot` не добавлен в `PATH`.
+Python 3.8+, no dependencies. Drawing PNG pictures additionally requires [Graphviz](https://graphviz.org/download/) (`dot` on your PATH).
 
-## Идея
+## Idea
 
-Реальная история, приведшая A в состояние `q`, неизвестна. Известно лишь, что она принадлежит множеству историй
+The real history that brought A into state `q` is unknown. All we know is that it belongs to the set of histories
 
-    H_A(q) = { w : A, стартуя из start_A, читая w, приходит в q }
+    H_A(q) = { w : A, started in start_A and reading w, ends in q }
 
-Мы прогоняем **все** эти слова через B и смотрим, где B оказывается:
+We replay **all** of these words in B and look at where B ends up:
+    N(q) = { δ_B(start_B, w) : w ∈ H_A(q) }     (δ undefined = a separate value, "stuck")
 
-    N(q) = { δ_B(start_B, w) : w ∈ H_A(q) }     (δ не определена = отдельное значение «застряли»)
-
-| N(q) | Статус | Смысл |
+| N(q) | Status | Meaning |
 |---|---|---|
-| ровно одно реальное состояние `p` | `UNIQUE` | ответ однозначен, это `p` |
-| ≥ 2 реальных состояний | `AMBIGUOUS` | B различает истории, которые A склеил в `q` |
-| содержит «застряли» | `STUCK` | B не умеет проиграть часть историй (событие запрещено) |
-| пусто | `UNREACHABLE` | `q` недостижимо из старта A, истории нет |
+| exactly one real state `p` | `UNIQUE` | the answer is unambiguous: it is `p` |
+| ≥ 2 real states | `AMBIGUOUS` | B tells apart histories that A merged into `q` |
+| contains "stuck" | `STUCK` | B cannot replay some of the histories (the event is not allowed) |
+| empty | `UNREACHABLE` | `q` cannot be reached from A's start, so it has no history |
 
-Слова не перебираются (их бесконечно много из-за циклов). Вместо этого делается BFS по произведению A × B: пара `(a, b)` достижима тогда и только тогда, когда есть слово, приводящее A в `a`, а B в `b`. Пары `(q, *)` и дают N(q). BFS возвращает и кратчайшее слово для каждой пары, оно служит доказательством в объяснении.
+Words are not enumerated (there are infinitely many because of cycles). Instead, the program runs a BFS over the product A × B: a pair `(a, b)` is reachable if and only if some word leads A to `a` and B to `b`. The pairs `(q, *)` give N(q). The BFS also returns the shortest word for every pair, which serves as evidence in the explanation.
 
-**Сложность:** время O((m+1)·E) ≤ O(n·m·k), память O(n·m), где n и E взяты после отсечения состояний A, не ведущих в `q`, m = |Q_B|, k = |Σ|. `map_all` считает все состояния A за один обход с той же оценкой.
+**Complexity:** time O((m+1)·E) ≤ O(n·m·k), memory O(n·m), where n and E are measured after trimming the states of A that cannot lead to `q`, m = |Q_B|, k = |Σ|. `map_all` computes all states of A in a single traversal with the same bound.
 
-## Файлы
+## Files
 
-| Файл | Назначение |
+| File | Purpose |
 |---|---|
-| `state_mapper.py` | библиотека и CLI |
-| `examples.py` | 21 пример (7 «очень просто», 7 «просто», 7 «сложно») с объяснениями |
-| `test_state_mapper.py` | тесты: примеры, сверка с перебором слов на 400 случайных парах, API, отрисовка |
-| `visualize.py` | рисунок «старый автомат + его позиция + новый автомат» (PNG через Graphviz) |
-| `example_L3-06.png`, `example_L3-06.dot` | готовый рисунок для примера L3-06 и его DOT-источник |
-| `order_v1.json`, `order_v2.json` | образец JSON-формата |
+| `state_mapper.py` | library and CLI |
+| `examples.py` | 21 examples (7 "very simple", 7 "simple", 7 "hard") with explanations |
+| `test_state_mapper.py` | tests: examples, cross-check against brute-force word enumeration on 400 random automaton pairs, API, rendering |
+| `visualize.py` | picture "old automaton + its current state + new automaton" (PNG via Graphviz) |
+| `example_L3-06.png`, `example_L3-06.dot` | ready-made picture for example L3-06 and its DOT source |
+| `order_v1.json`, `order_v2.json` | sample of the JSON format |
 
-## Быстрый старт
+## Quick start
 
 ```python
 from state_mapper import DFA, map_state, map_all, format_table
@@ -46,79 +45,79 @@ new = DFA.from_text("start=S; S -a-> X; S -b-> Y; X -c-> P; Y -c-> P")
 
 res = map_state(old, "q", new)
 print(res.status, res.answer)     # Status.UNIQUE P
-print(res.explain())              # подробное объяснение с доказательствами
+print(res.explain())              # detailed explanation with evidence
 
-print(format_table(map_all(old, new)))   # соответствие для всех состояний A
+print(format_table(map_all(old, new)))   # mapping for every state of A
 ```
 
-Автомат можно задать текстом (`start=NAME; src -event-> dst; ...`), списком переходов `DFA("s", [("s","a","x"), ...])` или JSON-файлом `{"start": "s", "transitions": [["s","a","x"], ...]}`. Имена состояний и событий не должны содержать пробелов.
+An automaton can be given as text (`start=NAME; src -event-> dst; ...`), as a list of transitions `DFA("s", [("s","a","x"), ...])`, or as a JSON file `{"start": "s", "transitions": [["s","a","x"], ...]}`. State and event names must not contain whitespace.
 
 ## API
 
 - `map_state(old, current, new, *, lenient=False) -> MappingResult`
 - `map_all(old, new, *, lenient=False) -> {state: MappingResult}`
 - `format_table(results) -> str`
-- `distinguishing_word(dfa, p1, p2)`: кратчайшая последовательность событий, допустимая ровно из одного из двух состояний (или `None`)
+- `distinguishing_word(dfa, p1, p2)`: the shortest event sequence that is allowed from exactly one of the two states (or `None`)
 
 `MappingResult`:
 
-| Поле | Значение |
+| Field | Meaning |
 |---|---|
 | `status` | `Status.UNIQUE / AMBIGUOUS / STUCK / UNREACHABLE` |
-| `answer` | состояние B (только при `UNIQUE`) |
-| `candidates` | `{состояние B: кратчайшая история}` для всех реальных элементов N(q) |
-| `stuck` | `StuckWitness` (история, которую B не проигрывает, и событие, на котором он застревает) или `None` |
-| `explain()` | текстовое объяснение, `short()` — одна строка |
+| `answer` | the state of B (only for `UNIQUE`) |
+| `candidates` | `{state of B: shortest history}` for every real element of N(q) |
+| `stuck` | a `StuckWitness` (a history that B cannot replay and the event on which it gets stuck) or `None` |
+| `explain()` | textual explanation; `short()` gives a one-line summary |
 
-**Строгий и мягкий режим.** По умолчанию (`lenient=False`) любая история, которую B не проигрывает, даёт `STUCK`, даже если остальные истории согласны на одном `p`. При `lenient=True` в таком случае возвращается `UNIQUE(p)` с предупреждением (`stuck` остаётся заполненным). Если проигрываемых историй нет вовсе, ответ всё равно `STUCK`.
+**Strict and lenient mode.** By default (`lenient=False`), any history that B cannot replay makes the result `STUCK`, even if all other histories agree on a single `p`. With `lenient=True`, such a case returns `UNIQUE(p)` together with a warning (`stuck` stays populated). If no history can be replayed at all, the result is still `STUCK`.
 
 ## CLI
 
 ```
-python state_mapper.py order_v1.json order_v2.json paid        # одно состояние
-python state_mapper.py order_v1.json order_v2.json --all       # таблица для всех
+python state_mapper.py order_v1.json order_v2.json paid        # one state
+python state_mapper.py order_v1.json order_v2.json --all       # table for all states
 python state_mapper.py old.json new.json shipped --lenient
 ```
 
-Код возврата: `0` — `UNIQUE`, `1` — иначе.
+Exit code: `0` for `UNIQUE`, `1` otherwise.
 
-## Визуализация
+## Visualization
 
 ```
-python visualize.py --example L3-06 -o picture.png         # пример из examples.py
-python visualize.py --all-examples images/                 # PNG для всех 21 примеров
-python visualize.py old.json new.json STATE -o out.png     # свои автоматы (+ --lenient, --dot out.dot)
+python visualize.py --example L3-06 -o picture.png         # an example from examples.py
+python visualize.py --all-examples images/                 # PNG for all 21 examples
+python visualize.py old.json new.json STATE -o out.png     # your own automata (+ --lenient, --dot out.dot)
 ```
 
-Из кода: `map_state(old, q, new).save_png("out.png")` или `.to_dot()` для DOT-текста.
+From code: `map_state(old, q, new).save_png("out.png")`, or `.to_dot()` for the DOT text.
 
-На рисунке старый автомат всегда сверху, новый снизу.
+In the picture the old automaton is always on top and the new one below it.
 
-| Элемент | Значение |
+| Element | Meaning |
 |---|---|
-| золотой узел с двойным кольцом `(current)` | текущее состояние A |
-| цветной узел `(match)` / `(candidate)` | соответствующее состояние B (зелёный — единственный ответ, остальные цвета — кандидаты при неоднозначности) |
-| пунктирная стрелка из A в B | соответствие с примером истории |
-| толстые цветные рёбра | кратчайшая история до каждого кандидата, в A и в B тем же цветом (общее ребро рисуется параллельными линиями) |
-| красные рёбра и красный прямоугольник | история, которую B не проигрывает, и место, где он застревает |
-| серые узлы и рёбра | не лежат ни на одной истории текущего состояния |
+| gold node with a double ring, `(current)` | current state of A |
+| coloured node, `(match)` / `(candidate)` | corresponding state of B (green: the unique answer; other colours: candidates when the result is ambiguous) |
+| dashed arrow from A to B | the correspondence, with an example history |
+| thick coloured edges | the shortest history to each candidate, drawn in A and in B with the same colour (an edge shared by several histories is drawn as parallel lines) |
+| red edges and a red box | a history that B cannot replay and the place where it gets stuck |
+| grey nodes and edges | not on any history of the current state |
 
-Показана только кратчайшая история на каждого кандидата. Остальные истории проверяет алгоритм, но на рисунке они не выделяются.
+Only the shortest history per candidate is highlighted. The algorithm checks all the other histories, but they are not marked in the picture.
 
-## Примеры и тесты
+## Examples and tests
 
 ```
-python examples.py                  # все 21 пример с выводом и объяснением
+python examples.py                  # all 21 examples with output and explanation
 python examples.py --level hard     # "very simple" | "simple" | "hard"
-python examples.py --id L3-03       # один пример
-python examples.py --list           # краткий список
-python -m unittest -v               # тесты
+python examples.py --id L3-03       # a single example
+python examples.py --list           # short list
+python -m unittest -v               # tests
 ```
 
-## Ограничения
+## Limitations
 
-- Только детерминированные автоматы. Для НКА история неоднозначна сама по себе, и задача становится PSPACE-трудной.
-- Принимающие состояния игнорируются, учитывается только структура переходов («прошлое»). Для автоматов Мили/Мура кодируйте пару (вход, выход) одним символом.
-- «Корректно» здесь значит «верно для любой возможной истории». Если нужен лишь самый вероятный ответ, при `AMBIGUOUS` выбор нужно делать по внешним данным (частоты, политика, запрос пользователя).
-- Программа не отличает «B запрещает событие» от «событие намеренно отсутствует» и не знает, какие состояния B считаются ошибочными или поглощающими. Это нужно решать вне неё.
-- При полном (дополненном стоком) B застревание превращается в попадание в ловушку, и такой ответ нужно трактовать как отказ самостоятельно.
+- Deterministic automata only. For NFAs the history is ambiguous by itself, and the problem becomes PSPACE-hard.
+- Accepting states are ignored; only the transition structure (the "past") is used. For Mealy/Moore machines, encode the (input, output) pair as a single symbol.
+- "Correct" here means "correct for every possible history". If you only need the most likely answer, then for `AMBIGUOUS` the choice has to be made with external data (frequencies, a policy, asking the user).
+- The program cannot tell "B forbids the event" from "the event is intentionally absent", and it does not know which states of B are error or absorbing states. This has to be decided outside of it.
+- If B is complete (completed with a sink state), getting stuck turns into entering the sink, and you have to interpret such an answer as a refusal yourself.
