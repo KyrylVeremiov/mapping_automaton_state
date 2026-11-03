@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import unittest
 
-from examples import CASES, evaluate
+from v0.examples import CASES, evaluate
 from state_mapper import (DFA, Status, distinguishing_word, map_all,
                           map_state)
 from visualize import _a_above_b, render_png, to_dot

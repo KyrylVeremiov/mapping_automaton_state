@@ -356,7 +356,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.all_examples or args.example:
-        from examples import CASES
+        from v0.examples import CASES
         cases = [c for c in CASES if args.example in (None, c.id)]
         if not cases:
             parser.error(f"unknown example id {args.example!r}")
