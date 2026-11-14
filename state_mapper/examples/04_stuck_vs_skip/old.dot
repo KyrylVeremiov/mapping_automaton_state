@@ -1,0 +1,9 @@
+// A - a then b
+digraph A {
+  rankdir=LR;
+  __start [shape=point];
+  node [shape=circle];
+  __start -> s0;
+  s0 -> s1 [label="a"];
+  s1 -> s2 [label="b"];
+}

@@ -1,0 +1,30 @@
+{
+ "start": "new",
+ "transitions": [
+  [
+   "new",
+   "cancel",
+   "cancelled"
+  ],
+  [
+   "new",
+   "pay",
+   "paid"
+  ],
+  [
+   "paid",
+   "refund",
+   "cancelled"
+  ],
+  [
+   "paid",
+   "ship",
+   "shipped"
+  ],
+  [
+   "shipped",
+   "deliver",
+   "delivered"
+  ]
+ ]
+}

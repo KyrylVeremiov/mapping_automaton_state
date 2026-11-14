@@ -1,0 +1,9 @@
+{
+  "title": "State mapping: old automaton A -> new automaton B",
+  "description": "The extra states of B are only reachable through words that already leave A for the trap, so s2 has a unique counterpart.",
+  "state": "s2",
+  "expect": {
+    "strong/strict": "UNIQUE S2", "strong/lenient": "UNIQUE S2",
+    "weak/strict": "UNIQUE S2", "weak/lenient": "UNIQUE S2"
+  }
+}

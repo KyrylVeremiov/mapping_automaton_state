@@ -1,0 +1,8 @@
+// B - knows only 'a'
+digraph B {
+  rankdir=LR;
+  __start [shape=point];
+  node [shape=circle];
+  __start -> t0;
+  t0 -> t1 [label="a"];
+}

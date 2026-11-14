@@ -1,0 +1,11 @@
+{
+  "states": ["t0", "t1", "t2", "t3", "t4"],
+  "input_symbols": ["a", "b", "c"],
+  "initial_state": "t0",
+  "final_states": ["t3", "t4"],
+  "transitions": {
+    "t0": {"a": "t1", "b": "t2"},
+    "t1": {"c": "t3"},
+    "t2": {"c": "t4"}
+  }
+}

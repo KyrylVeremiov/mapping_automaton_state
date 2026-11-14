@@ -1,0 +1,9 @@
+{
+  "title": "State mapping: old automaton A -> new automaton B",
+  "description": "A merges different histories into S2, B keeps them apart. Strong: AMBIGUOUS. Weak looks only at the simple history 'a a', so it is UNIQUE.",
+  "state": "S2",
+  "expect": {
+    "strong/strict": "AMBIGUOUS e s2", "strong/lenient": "AMBIGUOUS e s2",
+    "weak/strict": "UNIQUE s2", "weak/lenient": "UNIQUE s2"
+  }
+}

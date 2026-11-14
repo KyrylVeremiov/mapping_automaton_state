@@ -1,0 +1,7 @@
+name: B - the branches stay apart
+alphabet: a b c
+start: t0
+t0 -a-> t1
+t0 -b-> t2
+t1 -c-> t3
+t2 -c-> t4

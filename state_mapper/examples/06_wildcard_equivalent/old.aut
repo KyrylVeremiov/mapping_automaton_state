@@ -1,0 +1,6 @@
+name: A - "wait for the first a" written with ! and *
+alphabet: a b c
+start: wait
+wait -a->  seen
+wait -!a-> wait
+seen -*->  seen

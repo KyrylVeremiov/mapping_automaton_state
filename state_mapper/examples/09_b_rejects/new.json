@@ -1,0 +1,7 @@
+{
+  "name": "B - accepts words (ab)*  (the state after 'a' is NOT accepting)",
+  "alphabet": ["a", "b"],
+  "start": "t0",
+  "accepting": ["t0"],
+  "transitions": [["t0", "a", "t1"], ["t1", "b", "t0"]]
+}

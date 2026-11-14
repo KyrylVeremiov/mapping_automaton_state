@@ -1,0 +1,8 @@
+name: A - a loop on s0 and two ways to reach s2
+alphabet: a b c d e
+start: s0
+s0 -c-> s0
+s0 -d-> s2
+s0 -a-> s1
+s1 -b-> s3
+s3 -e-> s2

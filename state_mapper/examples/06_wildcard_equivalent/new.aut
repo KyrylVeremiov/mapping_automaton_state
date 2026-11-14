@@ -1,0 +1,6 @@
+name: B - the same behaviour with explicit letters
+alphabet: a b c
+start: u0
+u0 -a->   u1
+u0 -b,c-> u0
+u1 -a,b,c-> u1

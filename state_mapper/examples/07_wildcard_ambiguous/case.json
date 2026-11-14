@@ -1,0 +1,9 @@
+{
+  "title": "'!' and '*' in A, B tells histories apart",
+  "description": "'a' leads B to u1, 'c a' leads B to u2. Only the simple history 'a' is seen by the weak definition.",
+  "state": "s1",
+  "expect": {
+    "strong/strict": "AMBIGUOUS u1 u2", "strong/lenient": "AMBIGUOUS u1 u2",
+    "weak/strict": "UNIQUE u1", "weak/lenient": "UNIQUE u1"
+  }
+}

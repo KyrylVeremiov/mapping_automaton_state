@@ -1,0 +1,9 @@
+{
+  "title": "A merges two histories, B keeps them apart",
+  "description": "'a c' ends B in t3, 'b c' ends B in t4: ambiguous already for simple histories.",
+  "state": "s3",
+  "expect": {
+    "strong/strict": "AMBIGUOUS t3 t4", "strong/lenient": "AMBIGUOUS t3 t4",
+    "weak/strict": "AMBIGUOUS t3 t4", "weak/lenient": "AMBIGUOUS t3 t4"
+  }
+}

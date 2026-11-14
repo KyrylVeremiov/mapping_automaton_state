@@ -1,0 +1,9 @@
+{
+  "name": "B - remembers whether a 'c' came before the first a",
+  "alphabet": ["a", "b", "c"],
+  "start": "u0",
+  "transitions": [
+    ["u0", "a", "u1"], ["u0", "b", "u0"], ["u0", "c", "u2"],
+    ["u1", "*", "u1"], ["u2", "*", "u2"]
+  ]
+}
