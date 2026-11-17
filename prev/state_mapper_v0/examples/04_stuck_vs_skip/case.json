@@ -1,0 +1,9 @@
+{
+  "title": "STUCK (strict) versus skipping the letter (lenient)",
+  "description": "B has no transition on 'b' in t1. Strict: STUCK. Lenient: B ignores the letter and stays in t1.",
+  "state": "s2",
+  "expect": {
+    "strong/strict": "STUCK", "strong/lenient": "UNIQUE t1",
+    "weak/strict": "STUCK", "weak/lenient": "UNIQUE t1"
+  }
+}

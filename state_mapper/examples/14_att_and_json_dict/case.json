@@ -1,10 +1,15 @@
 {
   "title": "AT&T / OpenFst text (.att) as the old automaton, dict-style JSON as the new one",
   "description": "Example 11 in other formats. A merges two histories in state 3, B keeps them apart.",
-  "old": "old.att", "new": "new.json",
+  "old": "old.att",
+  "new": "new.json",
   "state": "3",
   "expect": {
-    "strong/strict": "AMBIGUOUS t3 t4", "strong/lenient": "AMBIGUOUS t3 t4",
-    "weak/strict": "AMBIGUOUS t3 t4", "weak/lenient": "AMBIGUOUS t3 t4"
+    "strong/strict": "AMBIGUOUS t3 t4",
+    "strong/lenient": "AMBIGUOUS t3 t4",
+    "simple/strict": "AMBIGUOUS t3 t4",
+    "simple/lenient": "AMBIGUOUS t3 t4",
+    "existence/strict": "AMBIGUOUS t3 t4",
+    "existence/lenient": "AMBIGUOUS t3 t4"
   }
 }

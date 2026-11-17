@@ -1,0 +1,13 @@
+{
+  "title": "Existence mode: histories on which B gets stuck give no candidate",
+  "description": "A reads a or b in the first step, B only knows a. Strict: the history 'b' makes B stuck, so strong and simple say STUCK, while existence lists the only state some history can lead to (t1). Lenient: B skips 'b' and stays in t0, so every mode lists t0 and t1.",
+  "state": "s1",
+  "expect": {
+    "strong/strict": "STUCK",
+    "strong/lenient": "AMBIGUOUS t0 t1",
+    "simple/strict": "STUCK",
+    "simple/lenient": "AMBIGUOUS t0 t1",
+    "existence/strict": "UNIQUE t1",
+    "existence/lenient": "AMBIGUOUS t0 t1"
+  }
+}

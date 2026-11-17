@@ -1,0 +1,9 @@
+{
+  "title": "Accepting states: q is not accepting in A",
+  "description": "H(s0) must lie in L(A), but s0 is not accepting, so it has no histories at all.",
+  "state": "s0",
+  "expect": {
+    "strong/strict": "NO_MATCH", "strong/lenient": "NO_MATCH",
+    "weak/strict": "NO_MATCH", "weak/lenient": "NO_MATCH"
+  }
+}

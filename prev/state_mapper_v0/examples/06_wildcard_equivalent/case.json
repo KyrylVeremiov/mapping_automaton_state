@@ -1,0 +1,9 @@
+{
+  "title": "'*' and '!' transitions versus explicit letters",
+  "description": "Both automata describe 'the first a has been read'; wildcard and explicit notations are interchangeable.",
+  "state": "seen",
+  "expect": {
+    "strong/strict": "UNIQUE u1", "strong/lenient": "UNIQUE u1",
+    "weak/strict": "UNIQUE u1", "weak/lenient": "UNIQUE u1"
+  }
+}

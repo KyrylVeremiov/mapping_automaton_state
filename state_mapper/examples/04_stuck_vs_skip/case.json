@@ -3,7 +3,11 @@
   "description": "B has no transition on 'b' in t1. Strict: STUCK. Lenient: B ignores the letter and stays in t1.",
   "state": "s2",
   "expect": {
-    "strong/strict": "STUCK", "strong/lenient": "UNIQUE t1",
-    "weak/strict": "STUCK", "weak/lenient": "UNIQUE t1"
+    "strong/strict": "STUCK",
+    "strong/lenient": "UNIQUE t1",
+    "simple/strict": "STUCK",
+    "simple/lenient": "UNIQUE t1",
+    "existence/strict": "STUCK",
+    "existence/lenient": "UNIQUE t1"
   }
 }

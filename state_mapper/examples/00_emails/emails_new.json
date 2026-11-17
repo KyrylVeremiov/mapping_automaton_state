@@ -1,0 +1,18 @@
+{
+ "start": "S0",
+ "transitions": [
+  ["S0","got_email","S1"],
+  
+  ["S1","no_answer_sent","S2"],
+  ["S2","no_answer_sent","S3"],
+  ["S3","no_answer_sent","S4"],
+  ["S4","no_answer_sent","S5"],
+  ["S5","no_answer_sent","E"],
+
+  ["S1","send_answer_even","S0"],
+  ["S2","send_answer_odd","S0"],
+  ["S3","send_answer_even","S0"],
+  ["S4","send_answer_odd","S0"],
+  ["S5","send_answer_even","S0"]
+ ]
+}

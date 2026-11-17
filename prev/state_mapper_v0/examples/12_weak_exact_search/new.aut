@@ -1,0 +1,9 @@
+name: B
+alphabet: a b c d e
+start: t0
+t0 -c-> t1
+t0 -d-> t8
+t1 -d-> t9
+t0 -a-> t2
+t2 -b-> t3
+t3 -e-> t9

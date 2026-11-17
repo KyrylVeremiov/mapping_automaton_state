@@ -1,0 +1,9 @@
+{
+  "title": "[C-03] Parity of a's AND b's -> parity of a's (coarser B)",
+  "description": "B is a quotient of A: all histories of a1b1 end in 'odd'.",
+  "state": "a1b1",
+  "expect": {
+    "strong/strict": "UNIQUE odd", "strong/lenient": "UNIQUE odd",
+    "weak/strict": "UNIQUE odd", "weak/lenient": "UNIQUE odd"
+  }
+}

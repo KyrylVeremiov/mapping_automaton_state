@@ -1,0 +1,10 @@
+{
+ "start": "S0",
+ "transitions": [
+  ["S0","got_email","S1"],
+  ["S1","no_answer_sent","S2"],
+  ["S2","no_answer_sent","S1"],
+  ["S1","send_answer_even","S0"],
+  ["S2","send_answer_odd","S0"]
+ ]
+}

@@ -3,7 +3,11 @@
   "description": "Every history of s1 ends B in t1, but t1 is not accepting, so the histories are not in L(B). Only possible if the files declare 'accept:'.",
   "state": "s1",
   "expect": {
-    "strong/strict": "NO_MATCH", "strong/lenient": "NO_MATCH",
-    "weak/strict": "NO_MATCH", "weak/lenient": "NO_MATCH"
+    "strong/strict": "NO_MATCH",
+    "strong/lenient": "NO_MATCH",
+    "simple/strict": "NO_MATCH",
+    "simple/lenient": "NO_MATCH",
+    "existence/strict": "NO_MATCH",
+    "existence/lenient": "NO_MATCH"
   }
 }

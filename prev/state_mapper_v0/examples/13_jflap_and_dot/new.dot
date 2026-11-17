@@ -1,0 +1,12 @@
+// B: parity of a's, written as a Graphviz file; 'odd' is accepting
+digraph B {
+  rankdir=LR;
+  __start [shape=point];
+  node [shape=circle];
+  odd [shape=doublecircle];
+  __start -> even;
+  even -> odd  [label="a"];
+  even -> even [label="b"];
+  odd  -> even [label="a"];
+  odd  -> odd  [label="b"];
+}

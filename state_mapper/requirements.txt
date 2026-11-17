@@ -1,0 +1,4 @@
+# Python packages used by state_mapper.
+# They are checked (and installed with pip if missing) automatically before every run,
+# see environment.py.  Install by hand:  python -m pip install -r requirements.txt
+Pillow>=9.0.0

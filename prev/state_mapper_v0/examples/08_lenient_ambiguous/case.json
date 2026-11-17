@@ -1,0 +1,9 @@
+{
+  "title": "Lenient policy on the OLD automaton (AT&T / OpenFst text format)",
+  "description": "Strict: A cannot read 'b', the only history of state 1 is 'a'. Lenient: A skips 'b', so 'a b' is also a history and takes B to state 2 (strong only; the simple history is still just 'a').",
+  "state": "1",
+  "expect": {
+    "strong/strict": "UNIQUE 1", "strong/lenient": "AMBIGUOUS 1 2",
+    "weak/strict": "UNIQUE 1", "weak/lenient": "UNIQUE 1"
+  }
+}

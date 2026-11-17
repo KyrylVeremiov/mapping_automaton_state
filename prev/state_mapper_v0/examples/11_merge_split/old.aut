@@ -1,0 +1,7 @@
+name: A - two branches merge in s3
+alphabet: a b c
+start: s0
+s0 -a-> s1
+s0 -b-> s2
+s1 -c-> s3
+s2 -c-> s3

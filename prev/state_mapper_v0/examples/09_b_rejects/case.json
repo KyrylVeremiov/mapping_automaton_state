@@ -1,0 +1,9 @@
+{
+  "title": "Accepting states: B does not accept the histories",
+  "description": "Every history of s1 ends B in t1, but t1 is not accepting, so the histories are not in L(B). Only possible if the files declare 'accept:'.",
+  "state": "s1",
+  "expect": {
+    "strong/strict": "NO_MATCH", "strong/lenient": "NO_MATCH",
+    "weak/strict": "NO_MATCH", "weak/lenient": "NO_MATCH"
+  }
+}

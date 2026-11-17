@@ -1,0 +1,10 @@
+{
+  "title": "JFLAP (.jff) as the old automaton, Graphviz (.dot) as the new one",
+  "description": "C-03 again; this time accepting states are marked (a1b1 in A, odd in B), so the definition's L(A)/L(B) conditions are really checked.",
+  "old": "old.jff", "new": "new.dot",
+  "state": "a1b1",
+  "expect": {
+    "strong/strict": "UNIQUE odd", "strong/lenient": "UNIQUE odd",
+    "weak/strict": "UNIQUE odd", "weak/lenient": "UNIQUE odd"
+  }
+}

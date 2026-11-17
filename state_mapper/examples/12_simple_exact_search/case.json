@@ -1,0 +1,13 @@
+{
+  "title": "Simple: the shortest history is not simple, a longer simple one exists",
+  "description": "B ends in t9 after 'c d' (A visits s0 twice, not simple) and after 'a b e' (simple). The simple search must find the longer word. 'd' ends in t8. Strict strong: 'c c d' makes B stuck.",
+  "state": "s2",
+  "expect": {
+    "strong/strict": "STUCK",
+    "strong/lenient": "AMBIGUOUS t1 t8 t9",
+    "simple/strict": "AMBIGUOUS t8 t9",
+    "simple/lenient": "AMBIGUOUS t8 t9",
+    "existence/strict": "AMBIGUOUS t8 t9",
+    "existence/lenient": "AMBIGUOUS t1 t8 t9"
+  }
+}

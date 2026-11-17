@@ -3,7 +3,11 @@
   "description": "No word leads A from s0 to x.",
   "state": "x",
   "expect": {
-    "strong/strict": "UNREACHABLE", "strong/lenient": "UNREACHABLE",
-    "weak/strict": "UNREACHABLE", "weak/lenient": "UNREACHABLE"
+    "strong/strict": "UNREACHABLE",
+    "strong/lenient": "UNREACHABLE",
+    "simple/strict": "UNREACHABLE",
+    "simple/lenient": "UNREACHABLE",
+    "existence/strict": "UNREACHABLE",
+    "existence/lenient": "UNREACHABLE"
   }
 }

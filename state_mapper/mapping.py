@@ -1,29 +1,41 @@
 """Core algorithm: which state p of B corresponds to the current state q of A?
 
-Definitions (see the formal text):
-  H(q)      = { w in L(A) : delta_A*(a0, w) = q }                  (histories)
-  Hsimple(q)= { w in H(q) : the run of A on w visits no state twice }
-  p ~ q     <=>  H(q) != {}  and  every w in H(q) is in L(B) and ends B in p.
-  strong uses H(q); weak uses Hsimple(q).
+Notation (the formal text calls the "simple" definition below "weak")
+  H(q)       = { w in L(A) : delta_A*(a0, w) = q }                     histories of q
+  Hsimple(q) = { w in H(q) : the run of A on w visits no state twice }   simple histories
+  O(q)       = { delta_B*(b0, w) : w in H(q) }   (undefined = "stuck")   endings of the histories
 
-Relation between the definitions (the Proposition "strong implies weak" of the formal text)
-  Hsimple(q) is a subset of H(q), hence  O_weak(q) <= O_strong(q)  where O(q) is the set of
-  B-states (or "stuck") that histories of q lead to.  p ~ q means O(q) = {p} (and p accepting),
-  so a state that is equivalent by the strong definition is always equivalent by the weak one:
-      p ~strong q  ==>  p ~weak q        (never the other way round)
-  The weak definition looks at fewer histories, therefore it allows MORE corresponding states:
-  e.g. O_strong = {s2, e} (AMBIGUOUS) but O_weak = {s2} (UNIQUE s2).  compare_definitions()
-  checks these facts for a pair of results.
+Three definitions (modes) of the criterion
+  strong     p ~ q  <=>  H(q) != {}  and  FOR ALL w in H(q):  w in L(B) and delta_B*(b0, w) = p
+  simple     the same, but only FOR ALL simple histories w in Hsimple(q)
+  existence  p is a CANDIDATE  <=>  THERE EXISTS w in H(q) with delta_B*(b0, w) = p
+             i.e. the criterion of "strong" with the quantifier over the words turned from "for all"
+             into "exists": the result is the list of ALL states of B that some history of q can lead to.
+             (Histories on which B gets stuck lead nowhere and give no candidate; they are only reported.
+             If accepting states are declared, a candidate that is not accepting is marked as such.)
 
-How it is computed
-  strong : breadth-first search in the product automaton A x B (polynomial).
-  weak   : hybrid.  (1) the strong analysis gives every B-state that some history can reach;
-           simple histories are histories, so O_weak <= O_strong: strong supplies an UPPER bound
-           for the candidates, which weak then filters (it never has a candidate that strong lacks).
+Relations between the definitions  (Hsimple(q) is a subset of H(q))
+  * Endings:  O_simple(q) is a subset of O_strong(q);  the candidates of existence are exactly the
+    defined (not stuck) endings of ALL histories, i.e. of O_strong(q).
+  * Corresponding states:  C(q) = { p : p ~ q }  has at most one element for strong and for simple, and
+    C_strong(q) <= C_simple(q) <= C_existence(q):   p ~strong q  ==>  p ~simple q  ==>  p is a candidate of existence.
+    None of the inclusions can be reversed:  O_strong = {s2, e}: strong says AMBIGUOUS, simple (which sees
+    only the simple history leading to s2) says UNIQUE s2, existence lists both s2 and e.  And a single
+    candidate of existence is no proof of ~strong: histories on which B gets stuck are invisible to existence.
+  compare_strong_simple(), compare_simple_existence() and compare_all() check these facts for results.
+
+How it is computed        n = |Q_A|, m = |Q_B|, k = |alphabet|
+  strong, existence: breadth-first search in the product automaton A x B (at most n(m+1) pairs and
+           n(m+1)k edges):  O(n*m*k) time for the search plus O(n*m^2) for the shortest witness words,
+           O(n*m) memory.  Polynomial (the question is a reachability question, so it is even in NL).
+  simple : hybrid.  (1) the strong analysis gives every B-state that some history can reach; simple
+           histories are histories, so O_simple <= O_strong: strong supplies an UPPER bound for the
+           candidates, which simple then filters (it never has a candidate that strong lacks).
            (2) a candidate is confirmed at once if its shortest history is already simple;
            otherwise (3) an exact depth-first search looks for a simple history ending there,
            pruned with product distances.  Finding simple paths is NP-hard in general, so step (3)
-           is exponential only in the worst case.
+           is exponential only in the worst case: O(n*m*(k+m)) for steps (1)-(2) plus at most
+           m+1 exact searches of O(n * k^n) each.
 
 Policies for a letter without transition:
   strict  : the automaton gets STUCK (delta* is undefined)
@@ -32,6 +44,7 @@ Policies for a letter without transition:
 
 Verdicts: UNIQUE, AMBIGUOUS, STUCK, UNREACHABLE and - only when the files declare
 accepting states - NO_MATCH (the definition demands w in L(A) and w in L(B)).
+For existence, UNIQUE means "exactly one candidate" and AMBIGUOUS "several candidates" (all listed).
 """
 from __future__ import annotations
 
@@ -39,7 +52,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional
 
-STRONG, WEAK = "strong", "weak"
+STRONG, SIMPLE, EXISTENCE = "strong", "simple", "existence"
+DEFINITION_NAMES = (STRONG, SIMPLE, EXISTENCE)
 STRICT, LENIENT = "strict", "lenient"
 
 UNIQUE, AMBIGUOUS, STUCK, UNREACHABLE, NO_MATCH = (
@@ -101,14 +115,16 @@ class Result:
     witnesses: list = field(default_factory=list)
     reason: str = ""                      # sub-reason, used by NO_MATCH
     reach_words: dict = field(default_factory=dict)
-    histories: list = field(default_factory=list)       # weak: [(word, b_end)]
-    n_histories: Optional[int] = None                    # weak
+    histories: list = field(default_factory=list)       # simple: [(word, b_end)]
+    n_histories: Optional[int] = None                    # simple
     n_pairs: Optional[int] = None                        # strong
     pairs_with_q: list = field(default_factory=list)     # strong
     live: Live = field(default_factory=Live)
-    live_exact: bool = True                              # weak: False if `live` is the strong over-approximation
-    strong_ends: dict = field(default_factory=dict)      # weak: B-state (None = stuck) -> shortest history, all histories
-    weak_notes: list = field(default_factory=list)       # weak: [(b_state, "shortest"|"search"|"none", word)]
+    live_exact: bool = True                              # simple: False if `live` is the strong over-approximation
+    strong_ends: dict = field(default_factory=dict)      # simple: B-state (None = stuck) -> shortest history, all histories
+    simple_notes: list = field(default_factory=list)       # simple: [(b_state, "shortest"|"search"|"none", word)]
+    ignored_stuck: list = field(default_factory=list)    # existence: histories on which B gets stuck (not candidates)
+    non_accepting: list = field(default_factory=list)    # candidates that are not accepting in B (if declared)
 
     def signature(self) -> str:
         """Compact comparable form, e.g. 'UNIQUE odd' or 'AMBIGUOUS e s2'."""
@@ -250,7 +266,7 @@ def _strong(A, B, q, policy):
     return outcomes, live, extra, prod
 
 
-# ------------------------------------------------------------------------ weak
+# ------------------------------------------------------------------------ simple
 def _is_simple(trace) -> bool:
     seq = [trace.start] + [s[2] for s in trace.steps]
     return len(set(seq)) == len(seq)
@@ -301,7 +317,7 @@ def _search_simple(A, B, q, policy, target_b, dist):
     return None
 
 
-def _weak_hybrid(A, B, q, policy, prod, strong_ends):
+def _simple_hybrid(A, B, q, policy, prod, strong_ends):
     """Candidates come from the strong analysis; each is confirmed by a simple history."""
     outcomes, notes = {}, []
     order = sorted(strong_ends, key=lambda k: (len(strong_ends[k]), -1 if k is BOT else B.states.index(k)))
@@ -320,7 +336,7 @@ def _weak_hybrid(A, B, q, policy, prod, strong_ends):
     return outcomes, notes
 
 
-def _weak_enumerate(A, B, q, policy, budget):
+def _simple_enumerate(A, B, q, policy, budget):
     """List ALL simple histories (for explanations and the grey parts of pictures).
 
     Returns None if more than `budget` DFS nodes would be needed."""
@@ -385,9 +401,9 @@ def _weak_enumerate(A, B, q, policy, budget):
 
 
 # ---------------------------------------------------------------------- driver
-def analyze(A, B, q, definition=WEAK, policy=STRICT) -> Result:
-    if definition not in (STRONG, WEAK) or policy not in (STRICT, LENIENT):
-        raise ValueError("definition must be strong|weak, policy must be strict|lenient")
+def analyze(A, B, q, definition=SIMPLE, policy=STRICT) -> Result:
+    if definition not in DEFINITION_NAMES or policy not in (STRICT, LENIENT):
+        raise ValueError("definition must be strong|simple|existence, policy must be strict|lenient")
     if q not in A.states:
         raise ValueError(f"state '{q}' does not exist in the old automaton "
                          f"(states: {', '.join(A.states)})")
@@ -408,12 +424,12 @@ def analyze(A, B, q, definition=WEAK, policy=STRICT) -> Result:
 
     strong_ends, live_strong, extra, prod = _strong(A, B, q, policy)
     res.n_pairs, res.pairs_with_q = extra["n_pairs"], extra["pairs_with_q"]
-    if definition == STRONG:
+    if definition in (STRONG, EXISTENCE):     # the same product search; only the quantifier differs
         outcomes, res.live = strong_ends, live_strong
     else:
         res.strong_ends = dict(strong_ends)
-        outcomes, res.weak_notes = _weak_hybrid(A, B, q, policy, prod, strong_ends)
-        enum = _weak_enumerate(A, B, q, policy, ENUM_BUDGET)
+        outcomes, res.simple_notes = _simple_hybrid(A, B, q, policy, prod, strong_ends)
+        enum = _simple_enumerate(A, B, q, policy, ENUM_BUDGET)
         if enum is None:                   # too many simple histories to list: show the strong parts
             res.live, res.live_exact = live_strong, False
         else:
@@ -430,9 +446,25 @@ def analyze(A, B, q, definition=WEAK, policy=STRICT) -> Result:
     states = [k for k in outcomes if k is not BOT]
     states.sort(key=lambda k: (len(outcomes[k]), B.states.index(k)))
     stuck = [witness(BOT)] if BOT in outcomes else []
-    res.witnesses = stuck + [witness(k) for k in states]
     res.candidates = states
+    res.non_accepting = [k for k in states if k not in B.accepting]
 
+    if definition == EXISTENCE:               # "exists": every state some history leads to is a candidate
+        if not states:                      # no history leads B anywhere: all of them get B stuck
+            res.witnesses, res.verdict = stuck, STUCK
+            return res
+        res.witnesses, res.ignored_stuck = [witness(k) for k in states], stuck
+        if len(states) >= 2:
+            res.verdict = AMBIGUOUS
+        else:
+            res.p = states[0]
+            if res.p in B.accepting:
+                res.verdict = UNIQUE
+            else:
+                res.verdict, res.reason = NO_MATCH, "b_rejects"
+        return res
+
+    res.witnesses = stuck + [witness(k) for k in states]
     if stuck:
         res.verdict = STUCK
     elif len(states) >= 2:
@@ -446,20 +478,24 @@ def analyze(A, B, q, definition=WEAK, policy=STRICT) -> Result:
     return res
 
 
-# ------------------------------------------------------ strong => weak, weak is more permissive
-AGREE = "AGREE"                      # strong has at most one ending, weak must give the same answer
-WEAK_ADDS = "WEAK_ADDS"              # weak has a unique counterpart that strong does not have
-SAME_ENDINGS = "SAME_ENDINGS"        # both see the same endings, no unique counterpart in either
-WEAK_SEES_LESS = "WEAK_SEES_LESS"    # weak sees fewer endings but still no unique counterpart
-INCONSISTENT = "INCONSISTENT"        # impossible; would mean a bug
+# ------------------------------------- relations: strong => simple => existence (never the other way)
+AGREE = "AGREE"                          # strong has at most one ending: simple must say the same
+SIMPLE_ADDS = "SIMPLE_ADDS"              # simple has a unique counterpart that strong does not have
+SAME_ENDINGS = "SAME_ENDINGS"            # both see the same endings, no unique counterpart in either
+SIMPLE_SEES_LESS = "SIMPLE_SEES_LESS"    # simple sees fewer endings but still no unique counterpart
+SAME_CANDIDATES = "SAME_CANDIDATES"      # the two modes list the same candidates
+EXISTENCE_ADDS = "EXISTENCE_ADDS"            # existence lists candidates that simple does not reach
+INCONSISTENT = "INCONSISTENT"            # impossible; would mean a bug
 
 
 @dataclass
 class Relation:
+    """Relation of two results for the same state and policy; pair = (lower, higher) definition."""
+    pair: tuple
     kind: str
-    strong: Result
-    weak: Result
-    only_strong: list = field(default_factory=list)   # Witness of endings that only strong sees
+    lo: Result                           # result of pair[0]
+    hi: Result                           # result of pair[1]
+    extra: list = field(default_factory=list)   # Witnesses of what only strong (resp. only existence) sees
     problem: str = ""
 
 
@@ -470,27 +506,81 @@ def outcome_set(r: Result) -> set:
     return {w.b_state for w in r.witnesses}
 
 
-def compare_definitions(rs: Result, rw: Result) -> Relation:
-    """Relation between the strong result ``rs`` and the weak result ``rw`` (same state, same policy).
+def candidate_set(r: Result) -> set:
+    """B-states that some history (of the kind this result looks at) leads to; "stuck" is not a state."""
+    return {w.b_state for w in r.witnesses if w.b_trace is not None and w.b_state is not None}
 
-    Facts guaranteed by the theory (violations are reported as INCONSISTENT):
-      * O_weak is a subset of O_strong;
-      * if strong has at most one ending, weak gives exactly the same answer
-        (in particular p ~strong q  implies  p ~weak q);
-    and what may differ: weak can have a unique counterpart where strong has several endings."""
-    assert (rs.definition, rw.definition) == (STRONG, WEAK) and rs.q == rw.q and rs.policy == rw.policy
-    o_s, o_w = outcome_set(rs), outcome_set(rw)
-    only = [w for w in rs.witnesses if w.b_trace is not None and w.b_state not in o_w]
+
+def _same_query(a: Result, b: Result, da: str, db: str):
+    assert (a.definition, b.definition) == (da, db) and a.q == b.q and a.policy == b.policy, \
+        "results must be for the same state and policy"
+
+
+def compare_strong_simple(rs: Result, ri: Result) -> Relation:
+    """Relation between the strong result ``rs`` and the simple result ``ri``.
+
+    Guaranteed by the theory (violations are reported as INCONSISTENT):
+      * O_simple is a subset of O_strong;
+      * if strong has at most one ending, simple gives exactly the same answer
+        (in particular p ~strong q  implies  p ~simple q);
+    what may differ: simple can have a unique counterpart where strong has several endings."""
+    _same_query(rs, ri, STRONG, SIMPLE)
+    pair = (STRONG, SIMPLE)
+    o_s, o_i = outcome_set(rs), outcome_set(ri)
+    only = [w for w in rs.witnesses if w.b_trace is not None and w.b_state not in o_i]
 
     def bad(msg):
-        return Relation(INCONSISTENT, rs, rw, only, msg)
+        return Relation(pair, INCONSISTENT, rs, ri, only, msg)
 
-    if not o_w <= o_s:
-        return bad(f"weak sees endings {sorted(map(str, o_w - o_s))} that strong does not see")
-    if len(o_s) <= 1:                                    # nothing for weak to filter out
-        if rs.signature() != rw.signature() or o_s != o_w:
-            return bad(f"strong says {rs.signature()}, but weak says {rw.signature()}")
-        return Relation(AGREE, rs, rw)
-    if rw.verdict == UNIQUE:
-        return Relation(WEAK_ADDS, rs, rw, only)
-    return Relation(SAME_ENDINGS if o_w == o_s else WEAK_SEES_LESS, rs, rw, only)
+    if not o_i <= o_s:
+        return bad(f"simple sees endings {sorted(map(str, o_i - o_s))} that strong does not see")
+    if len(o_s) <= 1:                                    # nothing for simple to filter out
+        if rs.signature() != ri.signature() or o_s != o_i:
+            return bad(f"strong says {rs.signature()}, but simple says {ri.signature()}")
+        return Relation(pair, AGREE, rs, ri)
+    if ri.verdict == UNIQUE:
+        return Relation(pair, SIMPLE_ADDS, rs, ri, only)
+    return Relation(pair, SAME_ENDINGS if o_i == o_s else SIMPLE_SEES_LESS, rs, ri, only)
+
+
+def compare_simple_existence(ri: Result, rx: Result) -> Relation:
+    """Relation between the simple result ``ri`` and the existence result ``rx``.
+
+    Guaranteed: every state that a simple history leads to is a candidate of existence (so a state
+    p ~simple q is always among the candidates); existence may list more, namely the endings of
+    histories that repeat a state of A (``extra``)."""
+    _same_query(ri, rx, SIMPLE, EXISTENCE)
+    pair = (SIMPLE, EXISTENCE)
+    c_i, c_r = candidate_set(ri), candidate_set(rx)
+    only = [w for w in rx.witnesses if w.b_trace is not None and w.b_state not in c_i]
+    if not c_i <= c_r:
+        return Relation(pair, INCONSISTENT, ri, rx, only,
+                        f"simple reaches {sorted(map(str, c_i - c_r))}, which existence does not list")
+    return Relation(pair, SAME_CANDIDATES if c_i == c_r else EXISTENCE_ADDS, ri, rx, only)
+
+
+def compare_strong_existence(rs: Result, rx: Result) -> Relation:
+    """strong and existence run the same product search, so they list the same states; existence differs
+    only by ignoring histories on which B gets stuck.  Hence, unless strong says STUCK, both give the
+    same answer, and strong UNIQUE p  gives  existence UNIQUE p."""
+    _same_query(rs, rx, STRONG, EXISTENCE)
+    pair = (STRONG, EXISTENCE)
+    if candidate_set(rs) != candidate_set(rx):
+        return Relation(pair, INCONSISTENT, rs, rx, [], "strong and existence list different states")
+    if rs.verdict != STUCK and rs.signature() != rx.signature():
+        return Relation(pair, INCONSISTENT, rs, rx, [],
+                        f"strong says {rs.signature()}, but existence says {rx.signature()}")
+    return Relation(pair, SAME_CANDIDATES, rs, rx, [])
+
+
+def compare_all(results: dict, policy: str) -> list:
+    """All checkable relations for one policy; results = {(definition, policy): Result}."""
+    rs, ri, rx = (results.get((d, policy)) for d in (STRONG, SIMPLE, EXISTENCE))
+    rels = []
+    if rs and ri:
+        rels.append(compare_strong_simple(rs, ri))
+    if ri and rx:
+        rels.append(compare_simple_existence(ri, rx))
+    if rs and rx:
+        rels.append(compare_strong_existence(rs, rx))
+    return rels

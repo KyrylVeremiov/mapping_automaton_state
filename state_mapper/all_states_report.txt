@@ -1,0 +1,431 @@
+==============================================================================
+Example 01_c03_parity: [C-03] Parity of a's AND b's -> parity of a's (coarser B)
+  B is a quotient of A: all histories of a1b1 end in 'odd'.
+  old: old.json   new: new.json   current state of A: a1b1
+all states of A (the old automaton), policy strict
+  state | strong      | simple      | existence   | note
+  ------------------------------------------------------
+  a0b0  | UNIQUE even | UNIQUE even | UNIQUE even |
+  a0b1  | UNIQUE even | UNIQUE even | UNIQUE even |
+  a1b0  | UNIQUE odd  | UNIQUE odd  | UNIQUE odd  |
+  a1b1  | UNIQUE odd  | UNIQUE odd  | UNIQUE odd  |
+  states with a unique counterpart: strong 4/4, simple 4/4; existence has exactly one candidate for 4/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong      | simple      | existence   | note
+  ------------------------------------------------------
+  a0b0  | UNIQUE even | UNIQUE even | UNIQUE even |
+  a0b1  | UNIQUE even | UNIQUE even | UNIQUE even |
+  a1b0  | UNIQUE odd  | UNIQUE odd  | UNIQUE odd  |
+  a1b1  | UNIQUE odd  | UNIQUE odd  | UNIQUE odd  |
+  states with a unique counterpart: strong 4/4, simple 4/4; existence has exactly one candidate for 4/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 02_tricky_ambiguous: State mapping: old automaton A -> new automaton B
+  A merges different histories into S2, B keeps them apart. Strong: AMBIGUOUS. Simple looks only at the simple history 'a a', so it is UNIQUE.
+  old: old.json   new: new.json   current state of A: S2
+all states of A (the old automaton), policy strict
+  state | strong            | simple    | existence         | note
+  ----------------------------------------------------------------
+  S0    | AMBIGUOUS {s0, e} | UNIQUE s0 | AMBIGUOUS {s0, e} | simple adds s0; existence also lists e
+  S1    | AMBIGUOUS {s1, e} | UNIQUE s1 | AMBIGUOUS {s1, e} | simple adds s1; existence also lists e
+  S2    | AMBIGUOUS {s2, e} | UNIQUE s2 | AMBIGUOUS {s2, e} | simple adds s2; existence also lists e
+  S3    | UNIQUE e          | UNIQUE e  | UNIQUE e          |
+  E     | UNIQUE e          | UNIQUE e  | UNIQUE e          |
+  states with a unique counterpart: strong 2/5, simple 5/5; existence has exactly one candidate for 2/5
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  S0: simple adds s0; strong also sees (histories that repeat a state of A):
+      e via "a a a b"
+  S0: existence also lists (histories that repeat a state of A):
+      e via "a a a b"
+  S1: simple adds s1; strong also sees (histories that repeat a state of A):
+      e via "a a a b a"
+  S1: existence also lists (histories that repeat a state of A):
+      e via "a a a b a"
+  S2: simple adds s2; strong also sees (histories that repeat a state of A):
+      e via "a a a b a a"
+  S2: existence also lists (histories that repeat a state of A):
+      e via "a a a b a a"
+
+all states of A (the old automaton), policy lenient
+  state | strong            | simple    | existence         | note
+  ----------------------------------------------------------------
+  S0    | AMBIGUOUS {s0, e} | UNIQUE s0 | AMBIGUOUS {s0, e} | simple adds s0; existence also lists e
+  S1    | AMBIGUOUS {s1, e} | UNIQUE s1 | AMBIGUOUS {s1, e} | simple adds s1; existence also lists e
+  S2    | AMBIGUOUS {s2, e} | UNIQUE s2 | AMBIGUOUS {s2, e} | simple adds s2; existence also lists e
+  S3    | UNIQUE e          | UNIQUE e  | UNIQUE e          |
+  E     | UNIQUE e          | UNIQUE e  | UNIQUE e          |
+  states with a unique counterpart: strong 2/5, simple 5/5; existence has exactly one candidate for 2/5
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  S0: simple adds s0; strong also sees (histories that repeat a state of A):
+      e via "a a a b"
+  S0: existence also lists (histories that repeat a state of A):
+      e via "a a a b"
+  S1: simple adds s1; strong also sees (histories that repeat a state of A):
+      e via "a a a b a"
+  S1: existence also lists (histories that repeat a state of A):
+      e via "a a a b a"
+  S2: simple adds s2; strong also sees (histories that repeat a state of A):
+      e via "a a a b a a"
+  S2: existence also lists (histories that repeat a state of A):
+      e via "a a a b a a"
+
+==============================================================================
+Example 03_tricky_unique: State mapping: old automaton A -> new automaton B
+  The extra states of B are only reachable through words that already leave A for the trap, so s2 has a unique counterpart.
+  old: old.json   new: new.json   current state of A: s2
+all states of A (the old automaton), policy strict
+  state | strong    | simple    | existence                     | note
+  --------------------------------------------------------------------
+  s0    | UNIQUE S0 | UNIQUE S0 | UNIQUE S0                     |
+  s1    | UNIQUE S1 | UNIQUE S1 | UNIQUE S1                     |
+  s2    | UNIQUE S2 | UNIQUE S2 | UNIQUE S2                     |
+  e     | STUCK     | UNIQUE S3 | AMBIGUOUS {S3, S0, E, S1, S2} | simple adds S3; existence also lists S0, E, S1, S2
+  states with a unique counterpart: strong 3/4, simple 4/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  e: simple adds S3; strong also sees (histories that repeat a state of A):
+      STUCK via "a a a b b"
+      S0 via "a a a b"
+      E via "a a a a"
+      S1 via "a a a b a"
+      S2 via "a a a b a a"
+  e: existence also lists (histories that repeat a state of A):
+      S0 via "a a a b"
+      E via "a a a a"
+      S1 via "a a a b a"
+      S2 via "a a a b a a"
+
+all states of A (the old automaton), policy lenient
+  state | strong                        | simple    | existence                     | note
+  ----------------------------------------------------------------------------------------
+  s0    | UNIQUE S0                     | UNIQUE S0 | UNIQUE S0                     |
+  s1    | UNIQUE S1                     | UNIQUE S1 | UNIQUE S1                     |
+  s2    | UNIQUE S2                     | UNIQUE S2 | UNIQUE S2                     |
+  e     | AMBIGUOUS {S3, S0, E, S1, S2} | UNIQUE S3 | AMBIGUOUS {S3, S0, E, S1, S2} | simple adds S3; existence also lists S0, E, S1, S2
+  states with a unique counterpart: strong 3/4, simple 4/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  e: simple adds S3; strong also sees (histories that repeat a state of A):
+      S0 via "a a a b"
+      E via "a a a a"
+      S1 via "a a a b a"
+      S2 via "a a a b a a"
+  e: existence also lists (histories that repeat a state of A):
+      S0 via "a a a b"
+      E via "a a a a"
+      S1 via "a a a b a"
+      S2 via "a a a b a a"
+
+==============================================================================
+Example 04_stuck_vs_skip: STUCK (strict) versus skipping the letter (lenient)
+  B has no transition on 'b' in t1. Strict: STUCK. Lenient: B ignores the letter and stays in t1.
+  old: old.dot   new: new.dot   current state of A: s2
+all states of A (the old automaton), policy strict
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  s0    | UNIQUE t0 | UNIQUE t0 | UNIQUE t0 |
+  s1    | UNIQUE t1 | UNIQUE t1 | UNIQUE t1 |
+  s2    | STUCK     | STUCK     | STUCK     |
+  states with a unique counterpart: strong 2/3, simple 2/3; existence has exactly one candidate for 2/3
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  s0    | UNIQUE t0 | UNIQUE t0 | UNIQUE t0 |
+  s1    | UNIQUE t1 | UNIQUE t1 | UNIQUE t1 |
+  s2    | UNIQUE t1 | UNIQUE t1 | UNIQUE t1 |
+  states with a unique counterpart: strong 3/3, simple 3/3; existence has exactly one candidate for 3/3
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 05_unreachable: UNREACHABLE state
+  No word leads A from s0 to x.
+  old: old.jff   new: new.jff   current state of A: x
+all states of A (the old automaton), policy strict
+  state | strong      | simple      | existence   | note
+  ------------------------------------------------------
+  s0    | UNIQUE t0   | UNIQUE t0   | UNIQUE t0   |
+  s1    | UNIQUE t1   | UNIQUE t1   | UNIQUE t1   |
+  s2    | UNIQUE t2   | UNIQUE t2   | UNIQUE t2   |
+  x     | UNREACHABLE | UNREACHABLE | UNREACHABLE |
+  states with a unique counterpart: strong 3/4, simple 3/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong      | simple      | existence   | note
+  ------------------------------------------------------
+  s0    | UNIQUE t0   | UNIQUE t0   | UNIQUE t0   |
+  s1    | UNIQUE t1   | UNIQUE t1   | UNIQUE t1   |
+  s2    | UNIQUE t2   | UNIQUE t2   | UNIQUE t2   |
+  x     | UNREACHABLE | UNREACHABLE | UNREACHABLE |
+  states with a unique counterpart: strong 3/4, simple 3/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 06_wildcard_equivalent: '*' and '!' transitions versus explicit letters
+  Both automata describe 'the first a has been read'; wildcard and explicit notations are interchangeable.
+  old: old.aut   new: new.aut   current state of A: seen
+all states of A (the old automaton), policy strict
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  wait  | UNIQUE u0 | UNIQUE u0 | UNIQUE u0 |
+  seen  | UNIQUE u1 | UNIQUE u1 | UNIQUE u1 |
+  states with a unique counterpart: strong 2/2, simple 2/2; existence has exactly one candidate for 2/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  wait  | UNIQUE u0 | UNIQUE u0 | UNIQUE u0 |
+  seen  | UNIQUE u1 | UNIQUE u1 | UNIQUE u1 |
+  states with a unique counterpart: strong 2/2, simple 2/2; existence has exactly one candidate for 2/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 07_wildcard_ambiguous: '!' and '*' in A, B tells histories apart
+  'a' leads B to u1, 'c a' leads B to u2. Only the simple history 'a' is seen by the simple definition.
+  old: old.json   new: new.json   current state of A: s1
+all states of A (the old automaton), policy strict
+  state | strong             | simple    | existence          | note
+  ------------------------------------------------------------------
+  s0    | AMBIGUOUS {u0, u2} | UNIQUE u0 | AMBIGUOUS {u0, u2} | simple adds u0; existence also lists u2
+  s1    | AMBIGUOUS {u1, u2} | UNIQUE u1 | AMBIGUOUS {u1, u2} | simple adds u1; existence also lists u2
+  states with a unique counterpart: strong 0/2, simple 2/2; existence has exactly one candidate for 0/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  s0: simple adds u0; strong also sees (histories that repeat a state of A):
+      u2 via "c"
+  s0: existence also lists (histories that repeat a state of A):
+      u2 via "c"
+  s1: simple adds u1; strong also sees (histories that repeat a state of A):
+      u2 via "c a"
+  s1: existence also lists (histories that repeat a state of A):
+      u2 via "c a"
+
+all states of A (the old automaton), policy lenient
+  state | strong             | simple    | existence          | note
+  ------------------------------------------------------------------
+  s0    | AMBIGUOUS {u0, u2} | UNIQUE u0 | AMBIGUOUS {u0, u2} | simple adds u0; existence also lists u2
+  s1    | AMBIGUOUS {u1, u2} | UNIQUE u1 | AMBIGUOUS {u1, u2} | simple adds u1; existence also lists u2
+  states with a unique counterpart: strong 0/2, simple 2/2; existence has exactly one candidate for 0/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  s0: simple adds u0; strong also sees (histories that repeat a state of A):
+      u2 via "c"
+  s0: existence also lists (histories that repeat a state of A):
+      u2 via "c"
+  s1: simple adds u1; strong also sees (histories that repeat a state of A):
+      u2 via "c a"
+  s1: existence also lists (histories that repeat a state of A):
+      u2 via "c a"
+
+==============================================================================
+Example 08_lenient_ambiguous: Lenient policy on the OLD automaton (AT&T / OpenFst text format)
+  Strict: A cannot read 'b', the only history of state 1 is 'a'. Lenient: A skips 'b', so 'a b' is also a history and takes B to state 2 (strong only; the simple history is still just 'a').
+  old: old.fsm   new: new.fsm   current state of A: 1
+all states of A (the old automaton), policy strict
+  state | strong   | simple   | existence | note
+  ----------------------------------------------
+  0     | UNIQUE 0 | UNIQUE 0 | UNIQUE 0  |
+  1     | UNIQUE 1 | UNIQUE 1 | UNIQUE 1  |
+  states with a unique counterpart: strong 2/2, simple 2/2; existence has exactly one candidate for 2/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong           | simple   | existence        | note
+  -------------------------------------------------------------
+  0     | UNIQUE 0         | UNIQUE 0 | UNIQUE 0         |
+  1     | AMBIGUOUS {1, 2} | UNIQUE 1 | AMBIGUOUS {1, 2} | simple adds 1; existence also lists 2
+  states with a unique counterpart: strong 1/2, simple 2/2; existence has exactly one candidate for 1/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  1: simple adds 1; strong also sees (histories that repeat a state of A):
+      2 via "a b"
+  1: existence also lists (histories that repeat a state of A):
+      2 via "a b"
+
+==============================================================================
+Example 09_b_rejects: Accepting states: B does not accept the histories
+  Every history of s1 ends B in t1, but t1 is not accepting, so the histories are not in L(B). Only possible if the files declare 'accept:'.
+  old: old.json   new: new.json   current state of A: s1
+all states of A (the old automaton), policy strict
+  state | strong   | simple   | existence | note
+  ----------------------------------------------
+  s0    | NO_MATCH | NO_MATCH | NO_MATCH  |
+  s1    | NO_MATCH | NO_MATCH | NO_MATCH  |
+  states with a unique counterpart: strong 0/2, simple 0/2; existence has exactly one candidate for 0/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong   | simple   | existence | note
+  ----------------------------------------------
+  s0    | NO_MATCH | NO_MATCH | NO_MATCH  |
+  s1    | NO_MATCH | NO_MATCH | NO_MATCH  |
+  states with a unique counterpart: strong 0/2, simple 0/2; existence has exactly one candidate for 0/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 10_no_accepted_history: Accepting states: q is not accepting in A
+  H(s0) must lie in L(A), but s0 is not accepting, so it has no histories at all.
+  old: old.aut   new: new.aut   current state of A: s0
+all states of A (the old automaton), policy strict
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  s0    | NO_MATCH  | NO_MATCH  | NO_MATCH  |
+  s1    | UNIQUE t1 | UNIQUE t1 | UNIQUE t1 |
+  states with a unique counterpart: strong 1/2, simple 1/2; existence has exactly one candidate for 1/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  s0    | NO_MATCH  | NO_MATCH  | NO_MATCH  |
+  s1    | UNIQUE t1 | UNIQUE t1 | UNIQUE t1 |
+  states with a unique counterpart: strong 1/2, simple 1/2; existence has exactly one candidate for 1/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 11_merge_split: A merges two histories, B keeps them apart
+  'a c' ends B in t3, 'b c' ends B in t4: ambiguous already for simple histories.
+  old: old.aut   new: new.aut   current state of A: s3
+all states of A (the old automaton), policy strict
+  state | strong             | simple             | existence          | note
+  ---------------------------------------------------------------------------
+  s0    | UNIQUE t0          | UNIQUE t0          | UNIQUE t0          |
+  s1    | UNIQUE t1          | UNIQUE t1          | UNIQUE t1          |
+  s2    | UNIQUE t2          | UNIQUE t2          | UNIQUE t2          |
+  s3    | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} |
+  states with a unique counterpart: strong 3/4, simple 3/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong             | simple             | existence          | note
+  ---------------------------------------------------------------------------
+  s0    | UNIQUE t0          | UNIQUE t0          | UNIQUE t0          |
+  s1    | UNIQUE t1          | UNIQUE t1          | UNIQUE t1          |
+  s2    | UNIQUE t2          | UNIQUE t2          | UNIQUE t2          |
+  s3    | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} |
+  states with a unique counterpart: strong 3/4, simple 3/4; existence has exactly one candidate for 3/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 12_simple_exact_search: Simple: the shortest history is not simple, a longer simple one exists
+  B ends in t9 after 'c d' (A visits s0 twice, not simple) and after 'a b e' (simple). The simple search must find the longer word. 'd' ends in t8. Strict strong: 'c c d' makes B stuck.
+  old: old.aut   new: new.aut   current state of A: s2
+all states of A (the old automaton), policy strict
+  state | strong | simple             | existence          | note
+  ---------------------------------------------------------------
+  s0    | STUCK  | UNIQUE t0          | AMBIGUOUS {t0, t1} | simple adds t0; existence also lists t1
+  s2    | STUCK  | AMBIGUOUS {t8, t9} | AMBIGUOUS {t8, t9} |
+  s1    | STUCK  | UNIQUE t2          | UNIQUE t2          | simple adds t2
+  s3    | STUCK  | UNIQUE t3          | UNIQUE t3          | simple adds t3
+  states with a unique counterpart: strong 0/4, simple 3/4; existence has exactly one candidate for 2/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  s0: simple adds t0; strong also sees (histories that repeat a state of A):
+      STUCK via "c c"
+      t1 via "c"
+  s0: existence also lists (histories that repeat a state of A):
+      t1 via "c"
+  s1: simple adds t2; strong also sees (histories that repeat a state of A):
+      STUCK via "c a"
+  s3: simple adds t3; strong also sees (histories that repeat a state of A):
+      STUCK via "c a b"
+
+all states of A (the old automaton), policy lenient
+  state | strong                 | simple             | existence              | note
+  -----------------------------------------------------------------------------------
+  s0    | AMBIGUOUS {t0, t1}     | UNIQUE t0          | AMBIGUOUS {t0, t1}     | simple adds t0; existence also lists t1
+  s2    | AMBIGUOUS {t8, t9, t1} | AMBIGUOUS {t8, t9} | AMBIGUOUS {t8, t9, t1} | existence also lists t1
+  s1    | AMBIGUOUS {t2, t1, t9} | UNIQUE t2          | AMBIGUOUS {t2, t1, t9} | simple adds t2; existence also lists t1, t9
+  s3    | AMBIGUOUS {t3, t1, t9} | UNIQUE t3          | AMBIGUOUS {t3, t1, t9} | simple adds t3; existence also lists t1, t9
+  states with a unique counterpart: strong 0/4, simple 3/4; existence has exactly one candidate for 0/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+  s0: simple adds t0; strong also sees (histories that repeat a state of A):
+      t1 via "c"
+  s0: existence also lists (histories that repeat a state of A):
+      t1 via "c"
+  s2: existence also lists (histories that repeat a state of A):
+      t1 via "c a b e"
+  s1: simple adds t2; strong also sees (histories that repeat a state of A):
+      t1 via "c a"
+      t9 via "c a d"
+  s1: existence also lists (histories that repeat a state of A):
+      t1 via "c a"
+      t9 via "c a d"
+  s3: simple adds t3; strong also sees (histories that repeat a state of A):
+      t1 via "c a b"
+      t9 via "c a b d"
+  s3: existence also lists (histories that repeat a state of A):
+      t1 via "c a b"
+      t9 via "c a b d"
+
+==============================================================================
+Example 13_jflap_and_dot: JFLAP (.jff) as the old automaton, Graphviz (.dot) as the new one
+  C-03 again; this time accepting states are marked (a1b1 in A, odd in B), so the definition's L(A)/L(B) conditions are really checked.
+  old: old.jff   new: new.dot   current state of A: a1b1
+all states of A (the old automaton), policy strict
+  state | strong     | simple     | existence  | note
+  ---------------------------------------------------
+  a0b0  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a0b1  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a1b0  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a1b1  | UNIQUE odd | UNIQUE odd | UNIQUE odd |
+  states with a unique counterpart: strong 1/4, simple 1/4; existence has exactly one candidate for 1/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong     | simple     | existence  | note
+  ---------------------------------------------------
+  a0b0  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a0b1  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a1b0  | NO_MATCH   | NO_MATCH   | NO_MATCH   |
+  a1b1  | UNIQUE odd | UNIQUE odd | UNIQUE odd |
+  states with a unique counterpart: strong 1/4, simple 1/4; existence has exactly one candidate for 1/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 14_att_and_json_dict: AT&T / OpenFst text (.att) as the old automaton, dict-style JSON as the new one
+  Example 11 in other formats. A merges two histories in state 3, B keeps them apart.
+  old: old.att   new: new.json   current state of A: 3
+all states of A (the old automaton), policy strict
+  state | strong             | simple             | existence          | note
+  ---------------------------------------------------------------------------
+  0     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  1     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  2     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  3     | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} |
+  states with a unique counterpart: strong 0/4, simple 0/4; existence has exactly one candidate for 0/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong             | simple             | existence          | note
+  ---------------------------------------------------------------------------
+  0     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  1     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  2     | NO_MATCH           | NO_MATCH           | NO_MATCH           |
+  3     | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} | AMBIGUOUS {t3, t4} |
+  states with a unique counterpart: strong 0/4, simple 0/4; existence has exactly one candidate for 0/4
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+Example 15_existence_ignores_stuck: Existence mode: histories on which B gets stuck give no candidate
+  A reads a or b in the first step, B only knows a. Strict: the history 'b' makes B stuck, so strong and simple say STUCK, while existence lists the only state some history can lead to (t1). Lenient: B skips 'b' and stays in t0, so every mode lists t0 and t1.
+  old: old.json   new: new.json   current state of A: s1
+all states of A (the old automaton), policy strict
+  state | strong    | simple    | existence | note
+  ------------------------------------------------
+  s0    | UNIQUE t0 | UNIQUE t0 | UNIQUE t0 |
+  s1    | STUCK     | STUCK     | UNIQUE t1 |
+  states with a unique counterpart: strong 1/2, simple 1/2; existence has exactly one candidate for 2/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+all states of A (the old automaton), policy lenient
+  state | strong             | simple             | existence          | note
+  ---------------------------------------------------------------------------
+  s0    | UNIQUE t0          | UNIQUE t0          | UNIQUE t0          |
+  s1    | AMBIGUOUS {t0, t1} | AMBIGUOUS {t0, t1} | AMBIGUOUS {t0, t1} |
+  states with a unique counterpart: strong 1/2, simple 1/2; existence has exactly one candidate for 1/2
+  (every strong pair is also a simple pair, and every simple pair is among the existence candidates)
+
+==============================================================================
+15 example(s) run; 0/0 checks against 'expect' passed.
+relations strong -> simple -> existence: 288/288 comparisons consistent (strong UNIQUE p => simple UNIQUE p => p is a candidate of existence).

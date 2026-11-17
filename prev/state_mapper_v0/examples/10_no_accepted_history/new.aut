@@ -1,0 +1,5 @@
+name: B
+alphabet: a b
+start: t0
+t0 -a-> t1
+t1 -b-> t0

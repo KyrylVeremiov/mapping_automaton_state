@@ -1,0 +1,9 @@
+{
+  "title": "UNREACHABLE state",
+  "description": "No word leads A from s0 to x.",
+  "state": "x",
+  "expect": {
+    "strong/strict": "UNREACHABLE", "strong/lenient": "UNREACHABLE",
+    "weak/strict": "UNREACHABLE", "weak/lenient": "UNREACHABLE"
+  }
+}

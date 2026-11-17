@@ -1,0 +1,6 @@
+{
+ "start": "t0",
+ "transitions": [
+  ["t0", "a", "t1"]
+ ]
+}

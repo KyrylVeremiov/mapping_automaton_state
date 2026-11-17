@@ -1,0 +1,10 @@
+{
+  "name": "A - wait for the first a (does not care what came before)",
+  "alphabet": ["a", "b", "c"],
+  "start": "s0",
+  "transitions": [
+    ["s0", "a", "s1"],
+    ["s0", "!a", "s0"],
+    ["s1", "*", "s1"]
+  ]
+}

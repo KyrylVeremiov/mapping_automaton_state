@@ -6,19 +6,22 @@ render()           one picture per (definition, policy): OLD automaton A with th
 render_combined()  ONE picture for several modes: A and B are drawn once, every correspondence arrow is
                    labelled with the modes that produce it, and a table at the top lists the result of
                    every mode.
+render_grid()      ONE picture with a TABLE of pictures: columns = definitions (strong, simple, existence),
+                   rows = policies (strict, lenient); every cell is the picture of one mode.  Needs Pillow
+                   (see requirements.txt) to put the cells together.
 """
 from __future__ import annotations
 
 import html
-import os
-import shutil
+import io
 import subprocess
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from mapping import AMBIGUOUS, NO_MATCH, STUCK, UNIQUE, UNREACHABLE, WEAK, Live, Trace
+from environment import dot_environment, find_dot, install_hint, use_vendor
+from mapping import AMBIGUOUS, EXISTENCE, NO_MATCH, SIMPLE, STUCK, UNIQUE, UNREACHABLE, Live, Trace
 
 FONT = "Helvetica"
 GREEN, RED = "#2ca25f", "#d62728"
@@ -33,18 +36,8 @@ class GraphvizMissing(RuntimeError):
     pass
 
 
-def _dot_executable() -> Optional[str]:
-    executable = shutil.which("dot")
-    if executable:
-        return executable
-
-    for variable in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
-        root = os.environ.get(variable)
-        if root:
-            candidate = os.path.join(root, "Graphviz", "bin", "dot.exe")
-            if os.path.isfile(candidate):
-                return candidate
-    return None
+class PillowMissing(RuntimeError):
+    pass
 
 
 def esc(x) -> str:
@@ -92,6 +85,9 @@ class Spec:
     note: str
     legend: list
     table_html: str = ""
+    compact: bool = False           # caption chip instead of a big title (cells of the table picture)
+    chip_text: str = ""
+    chip_color: str = ""
 
 
 def _result_text(r) -> str:
@@ -107,7 +103,12 @@ def _verdict_color(r) -> str:
 
 
 def _subtitle(r) -> str:
-    q, simple = r.q, "simple " if r.definition == WEAK else ""
+    q, simple = r.q, "simple " if r.definition == SIMPLE else ""
+    if r.definition == EXISTENCE and r.verdict == UNIQUE:
+        return f"UNIQUE: the only state of B that a history of '{q}' can lead to is '{r.p}'"
+    if r.definition == EXISTENCE and r.verdict == AMBIGUOUS:
+        return (f"AMBIGUOUS: histories of '{q}' can lead B to (candidates): "
+                + ", ".join(f"'{c}'" for c in r.candidates))
     if r.verdict == UNIQUE:
         return (f"UNIQUE: state '{q}' of A corresponds to state '{r.p}' of B "
                 f"(every {simple}history of '{q}' ends there)")
@@ -128,9 +129,11 @@ def _subtitle(r) -> str:
 def _legend(r) -> list:
     cur = (GOLD, "current state of A")
     gray = (GRAY_FILL, "not on any simple history of the current state"
-            if r.definition == WEAK and r.live_exact else "not on any history of the current state")
+            if r.definition == SIMPLE and r.live_exact else "not on any history of the current state")
     if r.verdict == UNIQUE:
-        return [cur, (_mix(GREEN), "corresponding state of B (green path = its history)"), gray]
+        what = ("the only candidate state of B (green path = its history)" if r.definition == EXISTENCE
+                else "corresponding state of B (green path = its history)")
+        return [cur, (_mix(GREEN), what), gray]
     if r.verdict == AMBIGUOUS:
         return [cur, (_mix(PALETTE[0]), "candidate state of B (same-colour path = its history)"), gray]
     if r.verdict == STUCK:
@@ -141,7 +144,12 @@ def _legend(r) -> list:
     return [cur, (_mix(RED), "red path = witness word"), gray]
 
 
-def _spec_single(A, B, r, title) -> Spec:
+DEF_SHORT = {"strong": "all histories must agree", "simple": "only simple histories (no repeated state of A)",
+             "existence": "some history may lead there (all candidates)"}
+POLICY_SHORT = {"strict": "missing transition = STUCK", "lenient": "missing transition is skipped"}
+
+
+def _spec_single(A, B, r, title, compact=False) -> Spec:
     cols, k = [], 0
     for w in r.witnesses:
         if r.verdict == UNIQUE:
@@ -170,24 +178,35 @@ def _spec_single(A, B, r, title) -> Spec:
     note = (f"definition: {r.definition}   |   policy: {r.policy}"
             + ("   |   accepting states declared in the files"
                if A.explicit_accepting or B.explicit_accepting else ""))
+    if r.ignored_stuck:
+        note += (f"   |   B also gets stuck on e.g. '{_word(r.ignored_stuck[0].word)}' "
+                 "(ignored by the existence mode)")
+    if compact:
+        note = f"{DEF_SHORT[r.definition]};  {POLICY_SHORT[r.policy]}"
+        if r.ignored_stuck:
+            note += f";  B also gets stuck on e.g. '{_word(r.ignored_stuck[0].word)}' (ignored by the existence mode)"
+        return Spec(r.q, r.verdict == UNREACHABLE, r.live, groups, roles, "result: " + _result_text(r),
+                    f"{r.definition} / {r.policy}", _subtitle(r), note, _legend(r),
+                    compact=True, chip_text=_result_text(r), chip_color=_verdict_color(r))
     return Spec(r.q, r.verdict == UNREACHABLE, r.live, groups, roles, "result: " + _result_text(r),
                 title or "State mapping: old automaton A -> new automaton B",
                 _subtitle(r), note, _legend(r))
 
 
 # --------------------------------------------------------------- combined picture
-def _modes_caption(modes) -> str:
+def _modes_caption(modes, all_defs, all_pols) -> str:
+    """Short description of a set of (definition, policy) modes: 'all modes', 'strong + existence, lenient', ..."""
     modes = set(modes)
-    if len(modes) == 4:
+    D = [d for d in all_defs if any((d, p) in modes for p in all_pols)]
+    P = [p for p in all_pols if any((d, p) in modes for d in all_defs)]
+    if modes != {(d, p) for d in D for p in P}:                      # not a rectangle: list them
+        return ", ".join(f"{d}/{p}" for d in all_defs for p in all_pols if (d, p) in modes)
+    if D == list(all_defs) and P == list(all_pols) and len(modes) > 1:
         return "all modes"
-    for d in ("strong", "weak"):
-        if modes == {(d, "strict"), (d, "lenient")}:
-            return f"{d}, both policies"
-    for p in ("strict", "lenient"):
-        if modes == {("strong", p), ("weak", p)}:
-            return f"{p}, both definitions"
-    order = [("strong", "strict"), ("strong", "lenient"), ("weak", "strict"), ("weak", "lenient")]
-    return ", ".join(f"{d}/{p}" for d, p in order if (d, p) in modes)
+
+    def part(items, universe, everything):
+        return everything if len(items) == len(universe) and len(universe) > 1 else " + ".join(items)
+    return f"{part(D, all_defs, 'all definitions')}, {part(P, all_pols, 'both policies')}"
 
 
 def _union(results, attr):
@@ -227,6 +246,8 @@ def _mode_table(results) -> str:
 
 def _spec_combined(A, B, results, title) -> Spec:
     q = results[0][2].q
+    all_defs = list(dict.fromkeys(d for d, _, _ in results))
+    all_pols = list(dict.fromkeys(p for _, p, _ in results))
     kind_of = {UNIQUE: "match", AMBIGUOUS: "candidate", STUCK: "candidate", NO_MATCH: "nomatch"}
     head_of = {"match": "corresponds to", "candidate": "possible match", "stuck": "B gets stuck",
                "nomatch": "not a match", "noacc": ""}
@@ -257,7 +278,7 @@ def _spec_combined(A, B, results, title) -> Spec:
     groups, roles = [], {}
     for (kind, target, word), (modes, at, bt) in items.items():
         col = color_of[(kind, target)]
-        groups.append(Group(col, head_of[kind], target, word, at, bt, _modes_caption(modes)))
+        groups.append(Group(col, head_of[kind], target, word, at, bt, _modes_caption(modes, all_defs, all_pols)))
         if target is not None:
             tag, prev = tag_of[kind], roles.get(target)
             if prev is None:
@@ -343,7 +364,7 @@ def _dot(A, B, sp: Spec) -> str:
     la, lb = sp.live.a_states, sp.live.b_states
 
     L = ["digraph G {",
-         '  graph [fontname="%s", rankdir=LR, pad="0.35", nodesep="0.55", ranksep="0.85", newrank=true];' % FONT,
+         '  graph [fontname="%s", rankdir=LR, pad="0.35", nodesep="0.55", ranksep="0.85", newrank=true, bgcolor="white"];' % FONT,
          f'  node [fontname="{FONT}", fontsize=15, shape=ellipse, style=filled, fillcolor=white, '
          f'color="#444444", penwidth=1.2];',
          f'  edge [fontname="{FONT}", fontsize=13, color="#444444", fontcolor="#333333", arrowsize=0.8];']
@@ -421,13 +442,24 @@ def _dot(A, B, sp: Spec) -> str:
         cells += (f'<TD BGCOLOR="{fill}" BORDER="1" WIDTH="22" HEIGHT="22" FIXEDSIZE="TRUE"> </TD>'
                   f'<TD ALIGN="LEFT">{esc(text)}</TD><TD WIDTH="10"> </TD>')
     table = f'<TR><TD ALIGN="LEFT">{sp.table_html}</TD></TR>' if sp.table_html else ""
-    header = ('<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">'
-              f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="26"><B>{esc(sp.title)}</B></FONT></TD></TR>'
-              f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17">{esc(sp.subtitle)}</FONT></TD></TR>'
-              f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#777777">{esc(sp.note)}</FONT></TD></TR>'
-              f'{table}'
-              f'<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3" CELLPADDING="2">'
-              f'<TR>{cells}</TR></TABLE></TD></TR></TABLE>')
+    if sp.compact:
+        header = ('<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">'
+                  '<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR>'
+                  f'<TD BGCOLOR="#333333"><FONT COLOR="white" POINT-SIZE="22"><B>{esc(sp.title)}</B></FONT></TD>'
+                  f'<TD BGCOLOR="{sp.chip_color}"><FONT COLOR="white" POINT-SIZE="20"><B>{esc(sp.chip_text)}</B>'
+                  '</FONT></TD></TR></TABLE></TD></TR>'
+                  f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="15">{esc(sp.subtitle)}</FONT></TD></TR>'
+                  f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#777777">{esc(sp.note)}</FONT></TD></TR>'
+                  f'<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3" CELLPADDING="2">'
+                  f'<TR>{cells}</TR></TABLE></TD></TR></TABLE>')
+    else:
+        header = ('<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">'
+                  f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="26"><B>{esc(sp.title)}</B></FONT></TD></TR>'
+                  f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17">{esc(sp.subtitle)}</FONT></TD></TR>'
+                  f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#777777">{esc(sp.note)}</FONT></TD></TR>'
+                  f'{table}'
+                  f'<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3" CELLPADDING="2">'
+                  f'<TR>{cells}</TR></TABLE></TD></TR></TABLE>')
     # set last, so that the clusters do not inherit this label
     L.append(f'  graph [label=<{header}>, labelloc=t, labeljust=l];')
     L.append("}")
@@ -443,20 +475,31 @@ def build_combined_dot(A, B, results, title=None) -> str:
 
 
 # ----------------------------------------------------------------------- render
+def _dot_bytes(dot_text, fmt="png", dpi=100) -> bytes:
+    """Run Graphviz on the text and return the picture; dot is searched with environment.find_dot()."""
+    exe = find_dot()
+    if exe is None:
+        raise GraphvizMissing(install_hint())
+    proc = subprocess.run([exe, f"-T{fmt}", f"-Gdpi={dpi}"], input=dot_text.encode("utf-8"),
+                          capture_output=True, env=dot_environment(exe))
+    if proc.returncode != 0 or not proc.stdout:
+        raise RuntimeError("dot failed: " + proc.stderr.decode("utf-8", "replace"))
+    return proc.stdout
+
+
 def _render_dot(dot_text, out_path, fmt, dpi) -> Path:
+    """Write the picture; if that is impossible the .dot source is saved next to ``out_path``."""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    exe = _dot_executable()
-    if exe is None:
-        out_path.with_suffix(".dot").write_text(dot_text, encoding="utf-8")
-        raise GraphvizMissing(
-            "Graphviz 'dot' was not found; install Graphviz (https://graphviz.org/download/) "
-            f"to render pictures. The DOT source was saved to {out_path.with_suffix('.dot')}")
-    proc = subprocess.run([exe, f"-T{fmt}", f"-Gdpi={dpi}", "-o", str(out_path)],
-                          input=dot_text.encode("utf-8"), capture_output=True)
-    if proc.returncode != 0:
-        out_path.with_suffix(".dot").write_text(dot_text, encoding="utf-8")
-        raise RuntimeError("dot failed: " + proc.stderr.decode("utf-8", "replace"))
+    try:
+        data = _dot_bytes(dot_text, fmt, dpi)
+    except RuntimeError as e:                      # GraphvizMissing is a RuntimeError, too
+        dot_file = out_path.with_suffix(".dot")
+        dot_file.write_text(dot_text, encoding="utf-8")
+        if isinstance(e, GraphvizMissing):
+            raise GraphvizMissing(f"{e} The DOT source was saved to {dot_file}") from None
+        raise
+    out_path.write_bytes(data)
     return out_path
 
 
@@ -468,3 +511,113 @@ def render(A, B, r, out_path, title=None, fmt="png", dpi=100) -> Path:
 def render_combined(A, B, results, out_path, title=None, fmt="png", dpi=100) -> Path:
     """Several modes on one picture.  results = [(definition, policy, Result), ...]."""
     return _render_dot(build_combined_dot(A, B, results, title), out_path, fmt, dpi)
+
+
+# ------------------------------------------------------------------ table picture (grid)
+GRID_MARGIN, GRID_GAP, GRID_PAD = 24, 16, 10      # outer margin, gap between cells, padding inside a cell
+GRID_COLUMN_TEXT = {"strong": "all histories must lead B to one state",
+                    "simple": "only simple histories (no repeated state of A)",
+                    "existence": "some history may lead there: all candidates"}
+GRID_ROW_TEXT = {"strict": ["policy: strict", "missing transition", "= STUCK"],
+                 "lenient": ["policy: lenient", "missing transition", "is skipped"]}
+
+
+def grid_layout(col_w, row_h, left, head_h, top, margin=GRID_MARGIN, gap=GRID_GAP):
+    """Geometry of the table picture (pure function, so it can be tested).
+
+    col_w, row_h : widths of the columns / heights of the rows of the cells
+    left         : width of the column with the row captions (0: none)
+    head_h       : height of the title banner at the top (0: none)
+    top          : height of the row with the column captions (0: none)
+    Returns (x of every column, y of every row, total width, total height)."""
+    x0 = margin + (left + gap if left else 0)
+    y0 = margin + (head_h + gap if head_h else 0) + (top + gap if top else 0)
+    xs, x = [], x0
+    for w in col_w:
+        xs.append(x)
+        x += w + gap
+    ys, y = [], y0
+    for h in row_h:
+        ys.append(y)
+        y += h + gap
+    return xs, ys, x - gap + margin, y - gap + margin
+
+
+def _banner_dot(inner_html: str) -> str:
+    return (f'digraph G {{ graph [bgcolor="white", pad="0.05"]; node [shape=plaintext, margin=0, '
+            f'fontname="{FONT}"]; n [label=<{inner_html}>]; }}')
+
+
+def _import_pillow():
+    use_vendor()                                   # packages installed into .vendor by environment.py
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError as e:
+        raise PillowMissing("the table picture needs the Pillow package; install it with: "
+                            "python -m pip install -r requirements.txt") from e
+    return Image, ImageDraw
+
+
+def render_grid(A, B, results, out_path, title=None, dpi=80) -> Path:
+    """ONE picture with a table of pictures: columns = definitions, rows = policies.
+
+    results = [(definition, policy, Result), ...]: 3x2 for all modes, 3x1 or 1x2 for one policy or one
+    definition, and so on.  Every cell is the picture of one mode (compact header with the mode and its
+    verdict).  The cells are put together with Pillow; Graphviz draws every cell and every caption."""
+    Image, ImageDraw = _import_pillow()
+    defs = list(dict.fromkeys(d for d, _, _ in results))
+    pols = list(dict.fromkeys(p for _, p, _ in results))
+    cell = {(d, p): r for d, p, r in results}
+    q = results[0][2].q
+
+    def to_image(dot_text):
+        return Image.open(io.BytesIO(_dot_bytes(dot_text, "png", dpi))).convert("RGB")
+
+    panels = {k: to_image(_dot(A, B, _spec_single(A, B, r, None, compact=True))) for k, r in cell.items()}
+    col_heads = [to_image(_banner_dot(
+        '<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" BGCOLOR="#eeeeee" COLOR="#999999">'
+        f'<TR><TD><FONT POINT-SIZE="22"><B>definition: {esc(d)}</B></FONT><BR/>'
+        f'<FONT POINT-SIZE="14" COLOR="#555555">{esc(GRID_COLUMN_TEXT.get(d, ""))}</FONT></TD></TR></TABLE>'))
+        for d in defs]
+    row_heads = [to_image(_banner_dot(
+        '<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" BGCOLOR="#eeeeee" COLOR="#999999">'
+        f'<TR><TD><FONT POINT-SIZE="22"><B>{esc(GRID_ROW_TEXT.get(p, [p])[0])}</B></FONT>'
+        + "".join(f'<BR/><FONT POINT-SIZE="14" COLOR="#555555">{esc(t)}</FONT>'
+                  for t in GRID_ROW_TEXT.get(p, [p])[1:]) + '</TD></TR></TABLE>')) for p in pols]
+    header = to_image(_banner_dot(
+        '<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">'
+        f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="26"><B>'
+        f'{esc(title or "State mapping: old automaton A -> new automaton B")}</B></FONT></TD></TR>'
+        f'<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17">Current state of A: {esc(q)}   -   all {len(results)} '
+        f'modes in one table</FONT></TD></TR>'
+        '<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#777777">columns: definitions, rows: policies; '
+        'every cell is the picture of one mode (thick coloured paths are the witness histories, grey parts '
+        'lie on no history)</FONT></TD></TR></TABLE>'))
+
+    col_w = [max(max(panels[(d, p)].width for p in pols if (d, p) in panels) + 2 * GRID_PAD, col_heads[j].width)
+             for j, d in enumerate(defs)]
+    row_h = [max(panels[(d, p)].height for d in defs if (d, p) in panels) + 2 * GRID_PAD for p in pols]
+    left, top = max(b.width for b in row_heads), max(b.height for b in col_heads)
+    xs, ys, width, height = grid_layout(col_w, row_h, left, header.height, top)
+    width = max(width, 2 * GRID_MARGIN + header.width)
+
+    canvas = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(canvas)
+    canvas.paste(header, (GRID_MARGIN, GRID_MARGIN))
+    head_y = GRID_MARGIN + header.height + GRID_GAP
+    for j, img in enumerate(col_heads):
+        canvas.paste(img, (xs[j] + (col_w[j] - img.width) // 2, head_y))
+    for i, img in enumerate(row_heads):
+        canvas.paste(img, (GRID_MARGIN, ys[i]))
+    for j, d in enumerate(defs):
+        for i, p in enumerate(pols):
+            if (d, p) in panels:                       # centred horizontally, aligned to the top of the cell
+                img = panels[(d, p)]
+                canvas.paste(img, (xs[j] + (col_w[j] - img.width) // 2, ys[i] + GRID_PAD))
+    for j in range(len(defs)):                         # the borders go last, on top of the cell pictures
+        for i in range(len(pols)):
+            draw.rectangle([xs[j], ys[i], xs[j] + col_w[j] - 1, ys[i] + row_h[i] - 1], outline=(150, 150, 150), width=2)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out_path, "PNG")
+    return out_path

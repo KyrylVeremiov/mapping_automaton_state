@@ -1,0 +1,6 @@
+name: A - s0 is reachable but not accepting
+alphabet: a b
+start: s0
+accept: s1
+s0 -a-> s1
+s1 -b-> s0
